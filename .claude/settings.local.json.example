@@ -2,7 +2,6 @@
   "permissions": {
     "allow": [
       "Skill(claude-api)",
-      "Read(//Users/**)",
       "Read(//.claude/**)",
       "Bash(python3 -c ' *)",
       "Bash(python *)",

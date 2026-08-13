@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ Regra Crítica: Nenhum Push Sem Autorização
+
+**NUNCA fazer push de forma alguma sem autorização explícita do usuário.**
+
+Esta regra se aplica:
+- A **QUALQUER Claude** em **QUALQUER computador**
+- A qualquer sessão de trabalho
+- A qualquer branch ou contexto
+- Mesmo que o código esteja perfeito, testes passem, ou pareça pronto
+
+**Comportamento esperado:**
+1. Fazer todas as mudanças necessárias
+2. Deixar claro que as mudanças estão prontas
+3. **AGUARDAR SOLICITAÇÃO EXPLÍCITA** do usuário para fazer o push
+4. Executar o push apenas quando o usuário disser "push" ou similar
+
+**Nunca fazer:**
+- `git push` sem pedir
+
+---
+
 ## O que é este projeto
 
 Agente multiorquestrador de pesquisa construído sobre o **Claude Agent SDK**

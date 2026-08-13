@@ -34,7 +34,7 @@ wheels/
 *~
 
 # Claude Code — Configurações Locais
-.claude/settings.local.json  # Não versionar: contém permissões específicas de cada dev
+#.claude/settings.local.json  # Não versionar: contém permissões específicas de cada dev
 
 # Logs e outputs
 research.log
