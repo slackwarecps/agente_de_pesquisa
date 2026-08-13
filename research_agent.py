@@ -12,6 +12,8 @@ especializados:
 
 Uso:
     python research_agent.py "tópico da pesquisa"
+
+Versão: 1.0.1 - Teste de workflow de code review com comentários no PR
 """
 
 import asyncio
