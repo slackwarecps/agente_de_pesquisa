@@ -34,22 +34,86 @@ jobs:
         run: |
           pip install -r requirements-dev.txt
       
-      - name: 🤖 Claude Code Review
+      - name: 🤖 Claude Code Review via API
         id: review
         run: |
-          # Instalar Claude CLI
-          if ! command -v claude &> /dev/null; then
-            echo "📦 Instalando Claude CLI..."
-            npm install -g @anthropic-ai/claude-cli
-          fi
+          python3 << 'PYTHON_SCRIPT'
+          import os
+          import subprocess
+          import json
+          from pathlib import Path
 
-          # Executar code review e capturar output
-          echo "🔍 Iniciando análise de código..."
-          REVIEW_OUTPUT=$(claude /code-review --model claude-haiku-4-5-20251001 2>&1 || echo "Análise executada")
+          # Obter lista de arquivos modificados
+          result = subprocess.run(
+              ["git", "diff", "--name-only", "origin/main...HEAD"],
+              capture_output=True,
+              text=True
+          )
+          changed_files = result.stdout.strip().split('\n')
+          changed_files = [f for f in changed_files if f.endswith('.py')]
 
-          # Salvar em arquivo para passar para o próximo step
-          echo "$REVIEW_OUTPUT" > /tmp/review.txt
-          echo "review=$(cat /tmp/review.txt | sed 's/$/\\n/' | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          if not changed_files:
+              print("Nenhum arquivo Python modificado")
+              exit(0)
+
+          # Ler diffs dos arquivos
+          diff_output = subprocess.run(
+              ["git", "diff", "origin/main...HEAD"] + changed_files,
+              capture_output=True,
+              text=True
+          ).stdout
+
+          # Construir prompt de review
+          review_prompt = f"""Você é um revisor de código experiente e didático.
+
+Analise este diff de código Python em busca de:
+1. Bugs e riscos de segurança (SQL injection, credenciais expostas, etc)
+2. Problemas de qualidade (código não testável, sem type hints, etc)
+3. Possíveis erros em runtime (IndexError, ZeroDivisionError, etc)
+4. Anti-padrões e recomendações de melhoria
+
+Arquivos modificados: {', '.join(changed_files)}
+
+DIFF:
+{diff_output}
+
+Forneça uma análise concisa, identificando problemas específicos com linha e sugestões de fix.
+Se não encontrar problemas, responda: "✅ Code review OK - nenhuma issue detectada"
+"""
+
+          # Chamar API do Claude via curl
+          response = subprocess.run([
+              "curl", "-s", "-X", "POST",
+              "https://api.anthropic.com/v1/messages",
+              "-H", "x-api-key: " + os.getenv("ANTHROPIC_API_KEY"),
+              "-H", "anthropic-version: 2023-06-01",
+              "-H", "content-type: application/json",
+              "-d", json.dumps({
+                  "model": "claude-haiku-4-5-20251001",
+                  "max_tokens": 2048,
+                  "messages": [
+                      {"role": "user", "content": review_prompt}
+                  ]
+              })
+          ], capture_output=True, text=True)
+
+          # Processar resposta
+          try:
+              data = json.loads(response.stdout)
+              review_text = data['content'][0]['text']
+
+              # Salvar em arquivo
+              with open('/tmp/review.txt', 'w') as f:
+                  f.write(review_text)
+
+              print("✅ Review concluído!")
+              print(review_text[:500])  # Print primeiras 500 chars
+
+          except Exception as e:
+              print(f"❌ Erro ao processar resposta: {e}")
+              print("Response:", response.stdout[:500])
+
+          PYTHON_SCRIPT
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         continue-on-error: true
