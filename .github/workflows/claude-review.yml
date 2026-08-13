@@ -73,7 +73,7 @@ jobs:
               "-H", "anthropic-version: 2023-06-01",
               "-H", "content-type: application/json",
               "-d", json.dumps({
-                  "model": "claude-haiku-4-5-20251001",
+                  "model": "claude-3-5-haiku-latest",
                   "max_tokens": 2048,
                   "messages": [
                       {"role": "user", "content": review_prompt}
@@ -94,8 +94,11 @@ jobs:
               print(review_text[:1000])
 
           except Exception as e:
-              print(f"❌ Erro: {e}")
-              print("Response:", response.stdout[:300] if response.stdout else "Sem response")
+              print(f"❌ Erro ao processar response: {e}")
+              print("STDOUT:", response.stdout[:500] if response.stdout else "Vazio")
+              print("STDERR:", response.stderr[:500] if response.stderr else "Vazio")
+              import sys
+              sys.exit(1)  # Falha o step para alertar o usuário
 
           PYTHON_SCRIPT
         env:
@@ -121,7 +124,12 @@ jobs:
 
             // Fallback se não tiver conteúdo
             if (!review || review.length === 0) {
-              review = '✅ **Code Review Executado**\n\nAnálise de código concluída. Verifique o output do workflow para mais detalhes.';
+              review = '❌ **Erro ao executar Code Review**\n\n' +
+                       'O review automático falhou. Possíveis causas:\n' +
+                       '- Erro de autenticação na API Anthropic\n' +
+                       '- Falha na chamada à API\n' +
+                       '- Problema ao processar resposta\n\n' +
+                       '[Verifique os logs do workflow](actions) para mais detalhes.';
             }
 
             // Postar comentário
