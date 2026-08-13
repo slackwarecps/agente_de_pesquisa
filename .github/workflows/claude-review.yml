@@ -49,33 +49,51 @@ jobs:
           print("🤖 Iniciando Claude Code Review")
           print("=" * 60)
 
-          # Obter lista de arquivos modificados (apenas Python)
+          # Obter lista de TODOS os arquivos modificados
           result = subprocess.run(
               ["git", "diff", "--name-only", "origin/main...HEAD"],
               capture_output=True,
               text=True
           )
-          changed_files = [f for f in result.stdout.strip().split('\n') if f.endswith('.py')]
-          print(f"📁 Arquivos Python modificados: {len(changed_files)}")
+          all_files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+          changed_files = [f for f in all_files if f.endswith('.py')]
+
+          print(f"📁 Arquivos TOTAIS modificados: {len(all_files)}")
+          for f in all_files[:10]:  # Mostrar primeiros 10
+              print(f"   - {f}")
+
+          print(f"🐍 Arquivos Python modificados: {len(changed_files)}")
           for f in changed_files:
               print(f"   - {f}")
 
           # Obter diff apenas dos arquivos Python (ignorar binários como .coverage)
           if not changed_files:
-              print("⚠️  Nenhum arquivo Python modificado. Abortando.")
-              sys.exit(0)
+              print("⚠️  Nenhum arquivo Python modificado.")
+              # Criar arquivo vazio para teste
+              print("📝 Criando arquivo vazio para teste...")
+              changed_files = []  # Mas continua mesmo sem Python files
 
-          result = subprocess.run(
-              ["git", "diff", "origin/main...HEAD"] + changed_files,
-              capture_output=True,
-              text=True
-          )
-          diff_output = result.stdout
-          print(f"📊 Linhas de diff: {len(diff_output.splitlines())}")
+          if changed_files:
+              result = subprocess.run(
+                  ["git", "diff", "origin/main...HEAD"] + changed_files,
+                  capture_output=True,
+                  text=True
+              )
+              diff_output = result.stdout
+              print(f"📊 Linhas de diff: {len(diff_output.splitlines())}")
+          else:
+              # Se não há arquivo Python, use diff de tudo
+              result = subprocess.run(
+                  ["git", "diff", "origin/main...HEAD"],
+                  capture_output=True,
+                  text=True
+              )
+              diff_output = result.stdout
+              print(f"📊 Diff total (sem filtro Python): {len(diff_output.splitlines())} linhas")
 
           if not diff_output.strip():
-              print("⚠️  Diff vazio. Abortando.")
-              sys.exit(0)
+              print("⚠️  Diff vazio. Criando review vazio.")
+              diff_output = "Nenhuma mudança detectada"
 
           # Seu prompt customizado original
           review_prompt = f"""REPO: ${{ github.repository }}
@@ -174,7 +192,19 @@ jobs:
               print(f"📋 Response code: {response.returncode}")
               print(f"📝 STDOUT: {response.stdout[:500]}")
               print(f"⚠️  STDERR: {response.stderr[:500]}")
+
+              # GARANTIR que um arquivo é criado para debug
+              temp_dir = os.getenv('RUNNER_TEMP', '/tmp')
+              fixed_path = os.path.join(temp_dir, 'claude-review.txt')
+              with open(fixed_path, 'w') as f:
+                  f.write(f"❌ Erro na análise: {type(e).__name__}: {e}\n\n")
+                  f.write(f"Response:\n{response.stdout}\n\nStderr:\n{response.stderr}")
+              print(f"📝 Arquivo de erro criado: {fixed_path}")
               sys.exit(1)
+
+          finally:
+              # Garantir que arquivo é criado mesmo em caso de erro
+              print("\n✅ Finalizando...")
 
           PYTHON_SCRIPT
         env:
