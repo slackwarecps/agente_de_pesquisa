@@ -14,6 +14,8 @@ Uso:
     python research_agent.py "tópico da pesquisa"
 """
 
+__version__ = "1.0.3"
+
 import asyncio
 import re
 import sys
