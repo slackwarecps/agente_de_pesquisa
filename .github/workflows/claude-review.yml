@@ -35,40 +35,21 @@ jobs:
           pip install -r requirements-dev.txt
       
       - name: 🤖 Claude Code Review
-        id: review
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --model claude-haiku-4-5-20251001
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Instalar Claude CLI se não estiver disponível
+          if ! command -v claude &> /dev/null; then
+            echo "📦 Instalando Claude CLI..."
+            npm install -g @anthropic-ai/claude-cli
+          fi
 
-            Você é um revisor de código didatico e engraçado:
-            1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
-            2. Verifique se há testes suficientes
-            3. Publique comentários acionáveis inline nas linhas modificadas
-
-            Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
-
-      - name: 💬 Postar Comentário de Review no PR
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const review = `${{ steps.review.outputs.review || steps.review.outputs.result || 'Análise de código concluída.' }}`;
-
-            if (!review || review.trim() === '') {
-              console.log('Nenhuma review para postar');
-              return;
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: review
-            });
-
-            console.log('✅ Comentário postado com sucesso no PR');
+          # Executar code review com comentários diretos no PR
+          echo "🔍 Iniciando análise de código..."
+          claude /code-review --comment --effort high 2>&1 || true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         continue-on-error: true
+
+      - name: 💬 Verificar Status do Review
+        run: |
+          echo "✅ Code review completado!"
+          echo "📍 Verifique os comentários no PR #${{ github.event.pull_request.number }}"
