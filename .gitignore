@@ -43,7 +43,12 @@ reports/
 .env.local
 .env.*.local
 
+# Testes e coverage
+.coverage
+.coverage.*
+.pytest_cache/
+htmlcov/
+
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
-.coverage
