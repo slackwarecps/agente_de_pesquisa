@@ -40,3 +40,13 @@ tail -f research.log
 ```
 
 Ao final, o relatório completo é salvo em `reports/<slug-do-topico>.md`.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+A suíte roda isolada (sem rede nem SDK real) e mede cobertura automaticamente
+via `pytest-cov` (configurado em `pyproject.toml`, com `fail_under = 100`).

@@ -269,5 +269,5 @@ def main() -> None:
     asyncio.run(research(topic))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()

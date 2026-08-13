@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--cov=research_agent --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+source = ["research_agent"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
