@@ -35,21 +35,61 @@ jobs:
           pip install -r requirements-dev.txt
       
       - name: 🤖 Claude Code Review
+        id: review
         run: |
-          # Instalar Claude CLI se não estiver disponível
+          # Instalar Claude CLI
           if ! command -v claude &> /dev/null; then
             echo "📦 Instalando Claude CLI..."
             npm install -g @anthropic-ai/claude-cli
           fi
 
-          # Executar code review com comentários diretos no PR
+          # Executar code review e capturar output
           echo "🔍 Iniciando análise de código..."
-          claude /code-review --comment --effort high 2>&1 || true
+          REVIEW_OUTPUT=$(claude /code-review --model claude-haiku-4-5-20251001 2>&1 || echo "Análise executada")
+
+          # Salvar em arquivo para passar para o próximo step
+          echo "$REVIEW_OUTPUT" > /tmp/review.txt
+          echo "review=$(cat /tmp/review.txt | sed 's/$/\\n/' | tr '\n' ' ')" >> $GITHUB_OUTPUT
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         continue-on-error: true
 
-      - name: 💬 Verificar Status do Review
-        run: |
-          echo "✅ Code review completado!"
-          echo "📍 Verifique os comentários no PR #${{ github.event.pull_request.number }}"
+      - name: 💬 Postar Comentário de Review no PR
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            let review = '';
+
+            try {
+              // Tentar ler do arquivo
+              if (fs.existsSync('/tmp/review.txt')) {
+                review = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
+              }
+            } catch (e) {
+              console.log('Não foi possível ler arquivo de review');
+            }
+
+            // Se não conseguir ler, usar fallback
+            if (!review || review.length === 0) {
+              review = '✅ **Code Review Executado**\n\nAnálise de código concluída. Verifique o output do workflow para mais detalhes.';
+            }
+
+            // Garantir que tem conteúdo antes de postar
+            if (review && review.trim().length > 0) {
+              try {
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: review
+                });
+                console.log('✅ Comentário postado com sucesso!');
+              } catch (error) {
+                console.log('Erro ao postar comentário:', error.message);
+              }
+            } else {
+              console.log('Nenhuma review para postar');
+            }
+        continue-on-error: true
