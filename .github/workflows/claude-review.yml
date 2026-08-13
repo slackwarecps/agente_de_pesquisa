@@ -43,14 +43,39 @@ jobs:
           import subprocess
           import json
           import tempfile
+          import sys
 
-          # Obter diff da PR
+          print("=" * 60)
+          print("🤖 Iniciando Claude Code Review")
+          print("=" * 60)
+
+          # Obter lista de arquivos modificados (apenas Python)
           result = subprocess.run(
-              ["git", "diff", "origin/main...HEAD"],
+              ["git", "diff", "--name-only", "origin/main...HEAD"],
+              capture_output=True,
+              text=True
+          )
+          changed_files = [f for f in result.stdout.strip().split('\n') if f.endswith('.py')]
+          print(f"📁 Arquivos Python modificados: {len(changed_files)}")
+          for f in changed_files:
+              print(f"   - {f}")
+
+          # Obter diff apenas dos arquivos Python (ignorar binários como .coverage)
+          if not changed_files:
+              print("⚠️  Nenhum arquivo Python modificado. Abortando.")
+              sys.exit(0)
+
+          result = subprocess.run(
+              ["git", "diff", "origin/main...HEAD"] + changed_files,
               capture_output=True,
               text=True
           )
           diff_output = result.stdout
+          print(f"📊 Linhas de diff: {len(diff_output.splitlines())}")
+
+          if not diff_output.strip():
+              print("⚠️  Diff vazio. Abortando.")
+              sys.exit(0)
 
           # Seu prompt customizado original
           review_prompt = f"""REPO: ${{ github.repository }}
@@ -87,31 +112,59 @@ jobs:
           try:
               data = json.loads(response.stdout)
               review_text = data['content'][0]['text']
+              print(f"✅ API respondeu com sucesso ({len(review_text)} caracteres)")
 
               # Salvar em arquivo temporário (usando $RUNNER_TEMP para melhor prática no GitHub Actions)
+              runner_temp = os.getenv('RUNNER_TEMP')
+              temp_dir = runner_temp if runner_temp and os.path.isdir(runner_temp) else '/tmp'
+              print(f"📂 Usando diretório temporário: {temp_dir}")
+
               with tempfile.NamedTemporaryFile(
                   mode='w',
                   delete=False,
                   suffix='.txt',
-                  dir=os.getenv('RUNNER_TEMP', '/tmp')
+                  dir=temp_dir
               ) as f:
                   review_path = f.name
                   f.write(review_text)
+                  f.flush()
+
+              # Validar que arquivo foi criado
+              if not os.path.exists(review_path):
+                  print(f"❌ Erro: arquivo não foi criado em {review_path}")
+                  sys.exit(1)
+              print(f"✅ Arquivo criado: {review_path} ({os.path.getsize(review_path)} bytes)")
 
               # Exportar caminho do arquivo para o próximo step
-              with open(os.environ.get('GITHUB_ENV', '/dev/null'), 'a') as env_file:
-                  env_file.write(f'REVIEW_FILE={review_path}\n')
+              github_env = os.environ.get('GITHUB_ENV')
+              if github_env:
+                  with open(github_env, 'a') as env_file:
+                      env_file.write(f'REVIEW_FILE={review_path}\n')
+                  print(f"✅ Variável REVIEW_FILE exportada: {review_path}")
+              else:
+                  print("⚠️  GITHUB_ENV não definido, usando fallback")
 
-              print("✅ Review concluído!")
-              print(f"📁 Arquivo salvo em: {review_path}")
-              print(review_text[:1000])
+              print("=" * 60)
+              print("✨ Review concluído com sucesso!")
+              print("=" * 60)
+              print(review_text[:500])
 
+          except json.JSONDecodeError as e:
+              print(f"❌ Erro ao decodificar JSON: {e}")
+              print(f"📋 Response status: {response.returncode}")
+              print(f"📝 Response STDOUT:\n{response.stdout[:1000]}")
+              print(f"⚠️  Response STDERR:\n{response.stderr[:1000]}")
+              sys.exit(1)
+          except KeyError as e:
+              print(f"❌ Erro ao acessar campo da resposta: {e}")
+              print(f"🔍 Resposta recebida:\n{response.stdout[:500]}")
+              sys.exit(1)
           except Exception as e:
-              print(f"❌ Erro ao processar response: {e}")
-              print("STDOUT:", response.stdout[:500] if response.stdout else "Vazio")
-              print("STDERR:", response.stderr[:500] if response.stderr else "Vazio")
-              import sys
-              sys.exit(1)  # Falha o step para alertar o usuário
+              print(f"❌ Erro inesperado: {type(e).__name__}: {e}")
+              print(f"📋 Response code: {response.returncode}")
+              print(f"📝 STDOUT: {response.stdout[:500]}")
+              print(f"⚠️  STDERR: {response.stderr[:500]}")
+              sys.exit(1)
 
           PYTHON_SCRIPT
         env:
