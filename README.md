@@ -50,3 +50,13 @@ pytest
 
 A suíte roda isolada (sem rede nem SDK real) e mede cobertura automaticamente
 via `pytest-cov` (configurado em `pyproject.toml`, com `fail_under = 100`).
+
+
+## Custom Slash Commands
+When you see these commands, follow the pattern:
+
+/passa-skill-de-seguranca
+- Executa: pip audit
+- Verifica secrets em código
+- Valida OWASP top 10
+- Gera security report
