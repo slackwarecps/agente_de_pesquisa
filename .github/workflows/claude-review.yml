@@ -18,252 +18,33 @@ permissions:
 jobs:
   claude-review:
     runs-on: ubuntu-latest
-
     steps:
       - name: ✅ Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.14'
-          cache: 'pip'
-
-      - name: 📦 Install dependencies
-        run: |
-          pip install -r requirements-dev.txt
+          fetch-depth: 1
 
       - name: 🤖 Claude Code Review
-        id: review
-        run: |
-          python3 << 'PYTHON_SCRIPT'
-          import os
-          import subprocess
-          import json
-          import tempfile
-          import sys
-
-          print("=" * 60)
-          print("🤖 Iniciando Claude Code Review")
-          print("=" * 60)
-
-          # Obter lista de TODOS os arquivos modificados
-          result = subprocess.run(
-              ["git", "diff", "--name-only", "origin/main...HEAD"],
-              capture_output=True,
-              text=True
-          )
-          all_files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
-          changed_files = [f for f in all_files if f.endswith('.py')]
-
-          print(f"📁 Arquivos TOTAIS modificados: {len(all_files)}")
-          for f in all_files[:10]:  # Mostrar primeiros 10
-              print(f"   - {f}")
-
-          print(f"🐍 Arquivos Python modificados: {len(changed_files)}")
-          for f in changed_files:
-              print(f"   - {f}")
-
-          # Obter diff apenas dos arquivos Python (ignorar binários como .coverage)
-          if not changed_files:
-              print("⚠️  Nenhum arquivo Python modificado.")
-              # Criar arquivo vazio para teste
-              print("📝 Criando arquivo vazio para teste...")
-              changed_files = []  # Mas continua mesmo sem Python files
-
-          if changed_files:
-              result = subprocess.run(
-                  ["git", "diff", "origin/main...HEAD"] + changed_files,
-                  capture_output=True,
-                  text=True
-              )
-              diff_output = result.stdout
-              print(f"📊 Linhas de diff: {len(diff_output.splitlines())}")
-          else:
-              # Se não há arquivo Python, use diff de tudo
-              result = subprocess.run(
-                  ["git", "diff", "origin/main...HEAD"],
-                  capture_output=True,
-                  text=True
-              )
-              diff_output = result.stdout
-              print(f"📊 Diff total (sem filtro Python): {len(diff_output.splitlines())} linhas")
-
-          if not diff_output.strip():
-              print("⚠️  Diff vazio. Criando review vazio.")
-              diff_output = "Nenhuma mudança detectada"
-
-          # Seu prompt customizado original
-          review_prompt = f"""REPO: ${{ github.repository }}
-          PR NUMBER: ${{ github.event.pull_request.number }}
-
-          Você é um revisor de código didatico e engraçado:
-          1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
-          2. Verifique se há testes suficientes
-          3. Publique comentários acionáveis inline nas linhas modificadas
-
-          Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
-
-          DIFF DO PR:
-          {diff_output}
-          """
-
-          # Chamar API Anthropic
-          response = subprocess.run([
-              "curl", "-s", "-X", "POST",
-              "https://api.anthropic.com/v1/messages",
-              "-H", "x-api-key: " + os.getenv("ANTHROPIC_API_KEY"),
-              "-H", "anthropic-version: 2023-06-01",
-              "-H", "content-type: application/json",
-              "-d", json.dumps({
-                  "model": "claude-3-5-haiku-latest",
-                  "max_tokens": 2048,
-                  "messages": [
-                      {"role": "user", "content": review_prompt}
-                  ]
-              })
-          ], capture_output=True, text=True)
-
-          # Processar resposta
-          try:
-              data = json.loads(response.stdout)
-              review_text = data['content'][0]['text']
-              print(f"✅ API respondeu com sucesso ({len(review_text)} caracteres)")
-
-              # Salvar em arquivo temporário (usando $RUNNER_TEMP para melhor prática no GitHub Actions)
-              runner_temp = os.getenv('RUNNER_TEMP')
-              temp_dir = runner_temp if runner_temp and os.path.isdir(runner_temp) else '/tmp'
-              print(f"📂 Usando diretório temporário: {temp_dir}")
-
-              with tempfile.NamedTemporaryFile(
-                  mode='w',
-                  delete=False,
-                  suffix='.txt',
-                  dir=temp_dir
-              ) as f:
-                  review_path = f.name
-                  f.write(review_text)
-                  f.flush()
-
-              # Validar que arquivo foi criado
-              if not os.path.exists(review_path):
-                  print(f"❌ Erro: arquivo não foi criado em {review_path}")
-                  sys.exit(1)
-              print(f"✅ Arquivo criado: {review_path} ({os.path.getsize(review_path)} bytes)")
-
-              # Exportar caminho do arquivo usando outputs do step
-              # (GITHUB_ENV não é confiável entre steps diferentes)
-              print(f"::set-output name=review_file::{review_path}")
-
-              # Também exportar via GITHUB_ENV para compatibilidade
-              github_env = os.environ.get('GITHUB_ENV')
-              if github_env:
-                  with open(github_env, 'a') as env_file:
-                      env_file.write(f'REVIEW_FILE={review_path}\n')
-                  print(f"✅ Variável REVIEW_FILE exportada via GITHUB_ENV: {review_path}")
-              else:
-                  print("⚠️  GITHUB_ENV não definido")
-
-              # Salvar em arquivo fixo que o próximo step conhece
-              fixed_path = os.path.join(temp_dir, 'claude-review.txt')
-              with open(fixed_path, 'w') as f:
-                  f.write(review_text)
-              print(f"✅ Arquivo salvo em caminho fixo: {fixed_path}")
-
-              print("=" * 60)
-              print("✨ Review concluído com sucesso!")
-              print("=" * 60)
-              print(review_text[:500])
-
-          except json.JSONDecodeError as e:
-              print(f"❌ Erro ao decodificar JSON: {e}")
-              print(f"📋 Response status: {response.returncode}")
-              print(f"📝 Response STDOUT:\n{response.stdout[:1000]}")
-              print(f"⚠️  Response STDERR:\n{response.stderr[:1000]}")
-              sys.exit(1)
-          except KeyError as e:
-              print(f"❌ Erro ao acessar campo da resposta: {e}")
-              print(f"🔍 Resposta recebida:\n{response.stdout[:500]}")
-              sys.exit(1)
-          except Exception as e:
-              print(f"❌ Erro inesperado: {type(e).__name__}: {e}")
-              print(f"📋 Response code: {response.returncode}")
-              print(f"📝 STDOUT: {response.stdout[:500]}")
-              print(f"⚠️  STDERR: {response.stderr[:500]}")
-
-              # GARANTIR que um arquivo é criado para debug
-              temp_dir = os.getenv('RUNNER_TEMP', '/tmp')
-              fixed_path = os.path.join(temp_dir, 'claude-review.txt')
-              with open(fixed_path, 'w') as f:
-                  f.write(f"❌ Erro na análise: {type(e).__name__}: {e}\n\n")
-                  f.write(f"Response:\n{response.stdout}\n\nStderr:\n{response.stderr}")
-              print(f"📝 Arquivo de erro criado: {fixed_path}")
-              sys.exit(1)
-
-          finally:
-              # Garantir que arquivo é criado mesmo em caso de erro
-              print("\n✅ Finalizando...")
-
-          PYTHON_SCRIPT
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        continue-on-error: true
-
-      - name: 💬 Postar Comentário de Review no PR
-        if: always()
-        uses: actions/github-script@v7
+        uses: anthropics/claude-code-action@v1
         with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const os = require('os');
-            let review = '';
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-            console.log('🔍 Procurando arquivo de review...');
+            Você é um revisor de código didático e engraçado. A branch do PR
+            já está com checkout feito no diretório atual.
 
-            // Caminhos para tentar (em ordem de prioridade)
-            const possiblePaths = [
-              path.join(process.env.RUNNER_TEMP || '/tmp', 'claude-review.txt'),
-              '/tmp/review.txt',
-              path.join(os.tmpdir(), 'claude-review.txt')
-            ];
+            1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
+            2. Verifique se há testes suficientes cobrindo as mudanças.
+            3. Use `mcp__github_inline_comment__create_inline_comment` (com `confirmed: true`)
+               para comentar diretamente nas linhas modificadas com problemas.
+            4. Use `gh pr comment` para um resumo geral da review.
 
-            // Tentar ler o arquivo de review
-            for (const filePath of possiblePaths) {
-              console.log(`  📂 Tentando: ${filePath}`);
-              try {
-                if (fs.existsSync(filePath)) {
-                  review = fs.readFileSync(filePath, 'utf8').trim();
-                  console.log(`  ✅ Arquivo encontrado! (${review.length} caracteres)`);
-                  break;
-                }
-              } catch (e) {
-                console.log(`  ⚠️  Erro ao ler ${filePath}: ${e.message}`);
-              }
-            }
+            Se não encontrar nenhum problema, publique com `gh pr comment`:
+            "✅ Code review OK - nenhuma issue detectada"
 
-            // Fallback se não tiver conteúdo
-            if (!review || review.length === 0) {
-              review = '❌ **Erro ao executar Code Review**\n\n' +
-                       'O review automático falhou. Possíveis causas:\n' +
-                       '- Erro de autenticação na API Anthropic\n' +
-                       '- Falha na chamada à API\n' +
-                       '- Problema ao processar resposta\n\n' +
-                       '[Verifique os logs do workflow](actions) para mais detalhes.';
-            }
-
-            // Postar comentário
-            try {
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: review
-              });
-              console.log('✅ Comentário postado!');
-            } catch (error) {
-              console.log('Erro ao postar:', error.message);
-            }
-        continue-on-error: true
+            Só publique feedback via os comandos/ferramentas acima — não
+            responda só em texto.
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
