@@ -36,20 +36,71 @@ jobs:
 
       - name: 🤖 Claude Code Review
         id: review
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --model claude-haiku-4-5-20251001
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import os
+          import subprocess
+          import json
 
-            Você é um revisor de código didatico e engraçado:
-            1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
-            2. Verifique se há testes suficientes
-            3. Publique comentários acionáveis inline nas linhas modificadas
+          # Obter diff da PR
+          result = subprocess.run(
+              ["git", "diff", "origin/main...HEAD"],
+              capture_output=True,
+              text=True
+          )
+          diff_output = result.stdout
 
-            Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
+          # Seu prompt customizado original
+          review_prompt = f"""REPO: ${{ github.repository }}
+          PR NUMBER: ${{ github.event.pull_request.number }}
+
+          Você é um revisor de código didatico e engraçado:
+          1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
+          2. Verifique se há testes suficientes
+          3. Publique comentários acionáveis inline nas linhas modificadas
+
+          Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
+
+          DIFF DO PR:
+          {diff_output}
+          """
+
+          # Chamar API Anthropic
+          response = subprocess.run([
+              "curl", "-s", "-X", "POST",
+              "https://api.anthropic.com/v1/messages",
+              "-H", "x-api-key: " + os.getenv("ANTHROPIC_API_KEY"),
+              "-H", "anthropic-version: 2023-06-01",
+              "-H", "content-type: application/json",
+              "-d", json.dumps({
+                  "model": "claude-haiku-4-5-20251001",
+                  "max_tokens": 2048,
+                  "messages": [
+                      {"role": "user", "content": review_prompt}
+                  ]
+              })
+          ], capture_output=True, text=True)
+
+          # Processar resposta
+          try:
+              data = json.loads(response.stdout)
+              review_text = data['content'][0]['text']
+
+              # Salvar em arquivo
+              with open('/tmp/review.txt', 'w') as f:
+                  f.write(review_text)
+
+              print("✅ Review concluído!")
+              print(review_text[:1000])
+
+          except Exception as e:
+              print(f"❌ Erro: {e}")
+              print("Response:", response.stdout[:300] if response.stdout else "Sem response")
+
+          PYTHON_SCRIPT
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        continue-on-error: true
 
       - name: 💬 Postar Comentário de Review no PR
         if: always()
@@ -59,46 +110,30 @@ jobs:
             const fs = require('fs');
             let review = '';
 
-            // Tenta múltiplas formas de capturar o output
-            const possiblePaths = [
-              '/tmp/review.txt',
-              '/tmp/claude-output.txt',
-              process.env.REVIEW_OUTPUT
-            ];
-
-            for (const path of possiblePaths) {
-              if (path && fs.existsSync(path)) {
-                try {
-                  review = fs.readFileSync(path, 'utf8').trim();
-                  if (review) break;
-                } catch (e) {
-                  console.log(`Não foi possível ler ${path}`);
-                }
+            // Tentar ler o arquivo de review
+            try {
+              if (fs.existsSync('/tmp/review.txt')) {
+                review = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
               }
+            } catch (e) {
+              console.log('Erro ao ler arquivo:', e.message);
             }
 
-            // Se não encontrar, tenta ler do contexto do step anterior
-            if (!review && process.env.REVIEW_CONTENT) {
-              review = process.env.REVIEW_CONTENT.trim();
-            }
-
-            // Se ainda não tiver, usa mensagem padrão
+            // Fallback se não tiver conteúdo
             if (!review || review.length === 0) {
               review = '✅ **Code Review Executado**\n\nAnálise de código concluída. Verifique o output do workflow para mais detalhes.';
             }
 
             // Postar comentário
-            if (review && review.trim().length > 0) {
-              try {
-                await github.rest.issues.createComment({
-                  issue_number: context.issue.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: review
-                });
-                console.log('✅ Comentário postado com sucesso!');
-              } catch (error) {
-                console.log('Erro ao postar comentário:', error.message);
-              }
+            try {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: review
+              });
+              console.log('✅ Comentário postado!');
+            } catch (error) {
+              console.log('Erro ao postar:', error.message);
             }
         continue-on-error: true
