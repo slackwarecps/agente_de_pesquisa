@@ -1,0 +1,10 @@
+{
+  "skills": [
+    {
+      "name": "passa-skill-de-seguranca",
+      "path": ".claude/skills/passa-skill-de-seguranca.md",
+      "description": "Executa auditoria de segurança completa do projeto (pip audit, detecção de secrets, OWASP top 10, relatório)",
+      "type": "project"
+    }
+  ]
+}
