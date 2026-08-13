@@ -1,7 +1,6 @@
 ---
 name: passa-skill-de-seguranca
 description: Executa auditoria de segurança completa do projeto (pip audit, detecção de secrets, OWASP top 10, relatório)
-type: project
 ---
 
 # Auditoria de Segurança Completa
