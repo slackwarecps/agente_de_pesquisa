@@ -20,10 +20,32 @@ export ANTHROPIC_API_KEY="sua-chave-aqui"
 python research_agent.py "tópico da pesquisa"
 ```
 
-Não há testes, lint ou build configurados neste projeto — é um script único.
-
 Requisitos: Python 3.10+; Node.js recomendado (o Claude Agent SDK usa o
 Claude Code CLI internamente).
+
+## Testes
+
+Testes são obrigatórios neste projeto com **100% de cobertura de código**.
+
+### Convenções
+
+- **Localização:** Todos os testes devem estar em `tests/`
+- **Linguagem:** Português brasileiro
+- **Nomenclatura:** Seguir o padrão `test_<nome_descritivo_em_portugues>`
+  - Exemplos: `test_ignorar_texto_em_branco`, `test_validar_tópico_vazio`, `test_criar_relatório_markdown`
+
+### Rodar testes
+
+```bash
+# Com cobertura obrigatória de 100% (usa a configuração em pyproject.toml)
+pytest tests/ -v
+
+# Cobertura explícita, se quiser forçar a mesma regra na linha de comando
+pytest tests/ -v --cov=research_agent --cov-report=term-missing --cov-fail-under=100
+
+# Sem cobertura (desenvolvimento rápido)
+pytest tests/ -v --no-cov
+```
 
 Acompanhar uma execução em segundo plano:
 ```bash
