@@ -2,6 +2,27 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ Regra Crítica: Nenhum Push Sem Autorização
+
+**NUNCA fazer push de forma alguma sem autorização explícita do usuário.**
+
+Esta regra se aplica:
+- A **QUALQUER Claude** em **QUALQUER computador**
+- A qualquer sessão de trabalho
+- A qualquer branch ou contexto
+- Mesmo que o código esteja perfeito, testes passem, ou pareça pronto
+
+**Comportamento esperado:**
+1. Fazer todas as mudanças necessárias
+2. Deixar claro que as mudanças estão prontas
+3. **AGUARDAR SOLICITAÇÃO EXPLÍCITA** do usuário para fazer o push
+4. Executar o push apenas quando o usuário disser "push" ou similar
+
+**Nunca fazer:**
+- `git push` sem pedir
+
+---
+
 ## O que é este projeto
 
 Agente multiorquestrador de pesquisa construído sobre o **Claude Agent SDK**
@@ -83,8 +104,8 @@ o comportamento de uma etapa, editar a entrada correspondente em `AGENTS` em
 vez de mexer no prompt do coordenador.
 
 A função `research()` monta as `ClaudeAgentOptions` (agentes, `allowed_tools`,
-`system_prompt`, `permission_mode="bypassPermissions"`), dispara `query(...)`
-e consome o stream de mensagens em tempo real, tratando por tipo:
+`system_prompt`, `permission_mode="bypassPermissions"`, `model=MODEL`), dispara
+`query(...)` e consome o stream de mensagens em tempo real, tratando por tipo:
 `TaskStartedMessage`/`TaskNotificationMessage` (início/fim de subagente),
 `AssistantMessage` com `ToolUseBlock` do tipo `Task` (delegações) ou
 `TextBlock` (falas do coordenador), e `ResultMessage` (custo/turnos finais).
@@ -97,3 +118,15 @@ O caminho do relatório é derivado do tópico via `_slugify()` e passado
 explicitamente no prompt do coordenador — o report-writer deve salvar
 exatamente nesse caminho (`reports/<slug-do-tópico>.md`); ao final,
 `research()` confere se o arquivo realmente foi criado nesse caminho.
+
+O modelo usado por coordenador e subagentes é fixado na constante `MODEL`
+(topo do arquivo), configurável via `os.getenv("RESEARCH_MODEL", default)`.
+Padrão é Haiku (mais econômico); atualize o padrão ali quando uma versão
+mais recente for lançada. Para testar com outro modelo:
+```bash
+RESEARCH_MODEL="claude-opus-5" python research_agent.py "seu tópico"
+```
+
+O `model=MODEL` é declarado explicitamente em cada `AgentDefinition` em
+`AGENTS`, garantindo que todos os subagentes herdam a mesma configuração de
+modelo passada pela sessão.

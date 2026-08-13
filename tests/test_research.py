@@ -13,6 +13,7 @@ das combinações de mensagem tratadas pelo laço `async for`.
 """
 
 import asyncio
+import importlib
 
 import pytest
 from claude_agent_sdk import (
@@ -214,3 +215,55 @@ def test_relatorio_criado_registra_sucesso(monkeypatch, make_query, isolated_pat
 def test_relatorio_nao_criado_gera_aviso(monkeypatch, make_query, isolated_paths):
     log = _run(monkeypatch, make_query, isolated_paths, [], topic="tema sem relatorio")
     assert "⚠️  Não encontrei o arquivo esperado" in log
+
+
+def test_log_inicial_mostra_modelo_usado(monkeypatch, make_query, isolated_paths):
+    # A linha de modelo deve aparecer logo abaixo de "Nova pesquisa", antes
+    # do caminho do relatório.
+    log = _run(monkeypatch, make_query, isolated_paths, [], topic="tema qualquer")
+    assert f"   Modelo: {research_agent.MODEL}" in log
+    assert log.index("🔎 Nova pesquisa") < log.index(f"Modelo: {research_agent.MODEL}") < log.index("Relatório será salvo em")
+
+
+def test_options_usa_modelo_configurado(monkeypatch, isolated_paths):
+    # Garante que research() sempre passa o modelo fixado em MODEL para o
+    # ClaudeAgentOptions, e não deixa o SDK escolher um modelo padrão.
+    opcoes_capturadas = {}
+
+    async def fake_query(*, prompt, options):
+        opcoes_capturadas["options"] = options
+        return
+        yield  # nunca executado; só torna a função um async generator
+
+    monkeypatch.setattr(research_agent, "query", fake_query)
+    asyncio.run(research_agent.research("tema qualquer"))
+
+    assert opcoes_capturadas["options"].model == research_agent.MODEL
+    assert "haiku" in research_agent.MODEL.lower()  # custo controlado, versão livre
+
+
+def test_prompt_report_writer_define_limite_de_palavras():
+    """Verifica que o prompt do report-writer menciona o limite de 500 palavras."""
+    prompt = research_agent.AGENTS["report-writer"].prompt
+    assert "500 palavras" in prompt
+
+
+def test_subagentes_usam_modelo_configurado():
+    """Verifica que todos os subagentes herdam explicitamente MODEL."""
+    for nome, definicao in research_agent.AGENTS.items():
+        assert definicao.model == research_agent.MODEL, (
+            f"Subagente '{nome}' não herda o modelo configurado"
+        )
+
+
+def test_model_respeita_variavel_de_ambiente(monkeypatch):
+    """Verifica que MODEL pode ser configurado via env var RESEARCH_MODEL."""
+    monkeypatch.setenv("RESEARCH_MODEL", "claude-opus-5")
+    # Recarrega o módulo para ler a nova variável de ambiente
+    importlib.reload(research_agent)
+    try:
+        assert research_agent.MODEL == "claude-opus-5"
+    finally:
+        # Limpa o env var e recarrega novamente para restaurar o estado
+        monkeypatch.delenv("RESEARCH_MODEL", raising=False)
+        importlib.reload(research_agent)

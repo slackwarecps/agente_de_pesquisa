@@ -41,6 +41,18 @@ tail -f research.log
 
 Ao final, o relatório completo é salvo em `reports/<slug-do-topico>.md`.
 
+### Variáveis de Ambiente
+
+- `RESEARCH_MODEL` — Define o modelo LLM para toda a pesquisa (coordenador + 
+  subagentes). Padrão: `claude-haiku-4-5-20251001` (versão econômica). 
+  Exemplos:
+  ```bash
+  RESEARCH_MODEL="claude-opus-5" python research_agent.py "seu tópico"
+  RESEARCH_MODEL="claude-sonnet-5" python research_agent.py "seu tópico"
+  ```
+  Haiku é recomendado para custos controlados; use Sonnet ou Opus se precisar
+  de raciocínio mais sofisticado (especialmente no synthesizer).
+
 ## Testes
 
 ```bash
@@ -50,3 +62,13 @@ pytest
 
 A suíte roda isolada (sem rede nem SDK real) e mede cobertura automaticamente
 via `pytest-cov` (configurado em `pyproject.toml`, com `fail_under = 100`).
+
+
+## Custom Slash Commands
+When you see these commands, follow the pattern:
+
+/passa-skill-de-seguranca
+- Executa: pip audit
+- Verifica secrets em código
+- Valida OWASP top 10
+- Gera security report

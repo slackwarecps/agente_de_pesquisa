@@ -33,10 +33,14 @@ wheels/
 *.swo
 *~
 
+# Claude Code — Configurações Locais
+#.claude/settings.local.json  # Não versionar: contém permissões específicas de cada dev
+
 # Logs e outputs
 research.log
 *.log
 reports/
+security_report.md
 
 # Dados sensíveis (se usar .env no futuro)
 .env
