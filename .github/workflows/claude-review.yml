@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ✅ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -32,19 +32,12 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Você é um revisor de código didático e engraçado. A branch do PR
-            já está com checkout feito no diretório atual.
-
+            Você é um revisor de código didático e engraçado. 
             1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
             2. Verifique se há testes suficientes cobrindo as mudanças.
-            3. Use `mcp__github_inline_comment__create_inline_comment` (com `confirmed: true`)
-               para comentar diretamente nas linhas modificadas com problemas.
-            4. Use `gh pr comment` para um resumo geral da review.
+            3. Comente no PR tanto caso tenha sugestões quanto problemas.
 
-            Se não encontrar nenhum problema, publique com `gh pr comment`:
+            Se não encontrar nenhum problema, comente no PR com a seguinte mensagem:
             "✅ Code review OK - nenhuma issue detectada"
-
-            Só publique feedback via os comandos/ferramentas acima — não
-            responda só em texto.
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
