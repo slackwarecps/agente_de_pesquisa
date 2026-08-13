@@ -17,130 +17,77 @@ permissions:
 jobs:
   claude-review:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: ✅ Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: 🐍 Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.14'
           cache: 'pip'
-      
+
       - name: 📦 Install dependencies
         run: |
           pip install -r requirements-dev.txt
-      
-      - name: 🤖 Claude Code Review via API
+
+      - name: 🤖 Claude Code Review
         id: review
-        run: |
-          python3 << 'PYTHON_SCRIPT'
-          import os
-          import subprocess
-          import json
-          from pathlib import Path
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: --model claude-haiku-4-5-20251001
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-          # Obter lista de arquivos modificados
-          result = subprocess.run(
-              ["git", "diff", "--name-only", "origin/main...HEAD"],
-              capture_output=True,
-              text=True
-          )
-          changed_files = result.stdout.strip().split('\n')
-          changed_files = [f for f in changed_files if f.endswith('.py')]
+            Você é um revisor de código didatico e engraçado:
+            1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
+            2. Verifique se há testes suficientes
+            3. Publique comentários acionáveis inline nas linhas modificadas
 
-          if not changed_files:
-              print("Nenhum arquivo Python modificado")
-              exit(0)
-
-          # Ler diffs dos arquivos
-          diff_output = subprocess.run(
-              ["git", "diff", "origin/main...HEAD"] + changed_files,
-              capture_output=True,
-              text=True
-          ).stdout
-
-          # Construir prompt de review
-          review_prompt = f"""Você é um revisor de código experiente e didático.
-
-Analise este diff de código Python em busca de:
-1. Bugs e riscos de segurança (SQL injection, credenciais expostas, etc)
-2. Problemas de qualidade (código não testável, sem type hints, etc)
-3. Possíveis erros em runtime (IndexError, ZeroDivisionError, etc)
-4. Anti-padrões e recomendações de melhoria
-
-Arquivos modificados: {', '.join(changed_files)}
-
-DIFF:
-{diff_output}
-
-Forneça uma análise concisa, identificando problemas específicos com linha e sugestões de fix.
-Se não encontrar problemas, responda: "✅ Code review OK - nenhuma issue detectada"
-"""
-
-          # Chamar API do Claude via curl
-          response = subprocess.run([
-              "curl", "-s", "-X", "POST",
-              "https://api.anthropic.com/v1/messages",
-              "-H", "x-api-key: " + os.getenv("ANTHROPIC_API_KEY"),
-              "-H", "anthropic-version: 2023-06-01",
-              "-H", "content-type: application/json",
-              "-d", json.dumps({
-                  "model": "claude-haiku-4-5-20251001",
-                  "max_tokens": 2048,
-                  "messages": [
-                      {"role": "user", "content": review_prompt}
-                  ]
-              })
-          ], capture_output=True, text=True)
-
-          # Processar resposta
-          try:
-              data = json.loads(response.stdout)
-              review_text = data['content'][0]['text']
-
-              # Salvar em arquivo
-              with open('/tmp/review.txt', 'w') as f:
-                  f.write(review_text)
-
-              print("✅ Review concluído!")
-              print(review_text[:500])  # Print primeiras 500 chars
-
-          except Exception as e:
-              print(f"❌ Erro ao processar resposta: {e}")
-              print("Response:", response.stdout[:500])
-
-          PYTHON_SCRIPT
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        continue-on-error: true
+            Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
 
       - name: 💬 Postar Comentário de Review no PR
-        uses: actions/github-script@v7
         if: always()
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             let review = '';
 
-            try {
-              // Tentar ler do arquivo
-              if (fs.existsSync('/tmp/review.txt')) {
-                review = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
+            // Tenta múltiplas formas de capturar o output
+            const possiblePaths = [
+              '/tmp/review.txt',
+              '/tmp/claude-output.txt',
+              process.env.REVIEW_OUTPUT
+            ];
+
+            for (const path of possiblePaths) {
+              if (path && fs.existsSync(path)) {
+                try {
+                  review = fs.readFileSync(path, 'utf8').trim();
+                  if (review) break;
+                } catch (e) {
+                  console.log(`Não foi possível ler ${path}`);
+                }
               }
-            } catch (e) {
-              console.log('Não foi possível ler arquivo de review');
             }
 
-            // Se não conseguir ler, usar fallback
+            // Se não encontrar, tenta ler do contexto do step anterior
+            if (!review && process.env.REVIEW_CONTENT) {
+              review = process.env.REVIEW_CONTENT.trim();
+            }
+
+            // Se ainda não tiver, usa mensagem padrão
             if (!review || review.length === 0) {
               review = '✅ **Code Review Executado**\n\nAnálise de código concluída. Verifique o output do workflow para mais detalhes.';
             }
 
-            // Garantir que tem conteúdo antes de postar
+            // Postar comentário
             if (review && review.trim().length > 0) {
               try {
                 await github.rest.issues.createComment({
@@ -153,7 +100,5 @@ Se não encontrar problemas, responda: "✅ Code review OK - nenhuma issue detec
               } catch (error) {
                 console.log('Erro ao postar comentário:', error.message);
               }
-            } else {
-              console.log('Nenhuma review para postar');
             }
         continue-on-error: true
