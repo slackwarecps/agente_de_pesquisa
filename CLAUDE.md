@@ -97,3 +97,4 @@ O caminho do relatório é derivado do tópico via `_slugify()` e passado
 explicitamente no prompt do coordenador — o report-writer deve salvar
 exatamente nesse caminho (`reports/<slug-do-tópico>.md`); ao final,
 `research()` confere se o arquivo realmente foi criado nesse caminho.
+# Test: Validar workflow simplificado
