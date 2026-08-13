@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Read(//Users/**)",
+      "Read(//.claude/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(python *)",
+      "Bash(pytest *)",
+      "Bash(git *)",
+      "Bash(gh *)",
+      "Artifact",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(pip audit *)",
+      "Bash(pip install *)",
+      "Bash(pip-audit *)",
+      "Bash(detect-secrets *)",
+      "Bash(grep -r *)",
+      "Write(security_report.md)",
+      "Bash(python3 security_audit.py *)"
+    ]
+  }
+}
