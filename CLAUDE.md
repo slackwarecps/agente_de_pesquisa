@@ -99,4 +99,13 @@ exatamente nesse caminho (`reports/<slug-do-tópico>.md`); ao final,
 `research()` confere se o arquivo realmente foi criado nesse caminho.
 
 O modelo usado por coordenador e subagentes é fixado na constante `MODEL`
-(topo do arquivo) — atualize-a ali quando um Haiku mais recente for lançado.
+(topo do arquivo), configurável via `os.getenv("RESEARCH_MODEL", default)`.
+Padrão é Haiku (mais econômico); atualize o padrão ali quando uma versão
+mais recente for lançada. Para testar com outro modelo:
+```bash
+RESEARCH_MODEL="claude-opus-5" python research_agent.py "seu tópico"
+```
+
+O `model=MODEL` é declarado explicitamente em cada `AgentDefinition` em
+`AGENTS`, garantindo que todos os subagentes herdam a mesma configuração de
+modelo passada pela sessão.

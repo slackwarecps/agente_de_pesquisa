@@ -41,6 +41,18 @@ tail -f research.log
 
 Ao final, o relatório completo é salvo em `reports/<slug-do-topico>.md`.
 
+### Variáveis de Ambiente
+
+- `RESEARCH_MODEL` — Define o modelo LLM para toda a pesquisa (coordenador + 
+  subagentes). Padrão: `claude-haiku-4-5-20251001` (versão econômica). 
+  Exemplos:
+  ```bash
+  RESEARCH_MODEL="claude-opus-5" python research_agent.py "seu tópico"
+  RESEARCH_MODEL="claude-sonnet-5" python research_agent.py "seu tópico"
+  ```
+  Haiku é recomendado para custos controlados; use Sonnet ou Opus se precisar
+  de raciocínio mais sofisticado (especialmente no synthesizer).
+
 ## Testes
 
 ```bash

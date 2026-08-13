@@ -8,7 +8,7 @@ especializados:
   - web-researcher    : busca informação atual na web
   - document-analyzer : aprofunda em fontes específicas e extrai fatos
   - synthesizer       : consolida os achados em uma síntese coerente
-  - report-writer     : escreve o relatório final em Markdown com citações, usando no maximo 500 palavras
+  - report-writer     : escreve o relatório final em Markdown com citações, usando no máximo 500 palavras
 
 Uso:
     python research_agent.py "tópico da pesquisa"
@@ -17,6 +17,7 @@ Uso:
 __version__ = "1.0.6"
 
 import asyncio
+import os
 import re
 import sys
 import time
@@ -37,9 +38,10 @@ from claude_agent_sdk import (
 REPORTS_DIR = Path(__file__).parent / "reports"
 LOG_PATH = Path(__file__).parent / "research.log"
 
-# Modelo usado por todo o sistema (coordenador + subagentes). Atualize aqui
-# quando um Haiku mais novo for lançado.
-MODEL = "claude-haiku-4-5-20251001"
+# Modelo usado por todo o sistema (coordenador + subagentes). Configurável
+# via variável de ambiente RESEARCH_MODEL; padrão é Haiku (mais econômico).
+# Atualize o padrão quando um Haiku mais novo for lançado.
+MODEL = os.getenv("RESEARCH_MODEL", "claude-haiku-4-5-20251001")
 
 
 class ProgressLogger:
@@ -88,6 +90,7 @@ AGENTS = {
             "URLs."
         ),
         tools=["WebSearch", "WebFetch"],
+        model=MODEL,
     ),
     "document-analyzer": AgentDefinition(
         description=(
@@ -104,6 +107,7 @@ AGENTS = {
             "estruturada de fato → fonte."
         ),
         tools=["WebFetch", "Read", "Grep"],
+        model=MODEL,
     ),
     "synthesizer": AgentDefinition(
         description=(
@@ -120,6 +124,7 @@ AGENTS = {
             "informação que não veio das fontes fornecidas."
         ),
         tools=[],
+        model=MODEL,
     ),
     "report-writer": AgentDefinition(
         description=(
@@ -131,11 +136,14 @@ AGENTS = {
             "organizada e citada, escreva um relatório completo em Markdown com: "
             "um título, um resumo executivo, seções temáticas com as citações "
             "inline (formato [fonte](URL) ou numeradas), e uma seção final "
-            "'Referências' listando todas as URLs usadas. Salve o arquivo com a "
-            "ferramenta Write no caminho exato que foi instruído. Depois de "
-            "salvar, responda apenas confirmando o caminho do arquivo salvo."
+            "'Referências' listando todas as URLs usadas. O relatório deve ter "
+            "no máximo 500 palavras (sem contar a seção 'Referências'). Priorize "
+            "densidade sobre extensão. Salve o arquivo com a ferramenta Write no "
+            "caminho exato que foi instruído. Depois de salvar, responda apenas "
+            "confirmando o caminho do arquivo salvo."
         ),
         tools=["Write"],
+        model=MODEL,
     ),
 }
 

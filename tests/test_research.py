@@ -13,6 +13,7 @@ das combinações de mensagem tratadas pelo laço `async for`.
 """
 
 import asyncio
+import importlib
 
 import pytest
 from claude_agent_sdk import (
@@ -238,4 +239,31 @@ def test_options_usa_modelo_configurado(monkeypatch, isolated_paths):
     asyncio.run(research_agent.research("tema qualquer"))
 
     assert opcoes_capturadas["options"].model == research_agent.MODEL
-    assert research_agent.MODEL == "claude-haiku-4-5-20251001"
+    assert "haiku" in research_agent.MODEL.lower()  # custo controlado, versão livre
+
+
+def test_prompt_report_writer_define_limite_de_palavras():
+    """Verifica que o prompt do report-writer menciona o limite de 500 palavras."""
+    prompt = research_agent.AGENTS["report-writer"].prompt
+    assert "500 palavras" in prompt
+
+
+def test_subagentes_usam_modelo_configurado():
+    """Verifica que todos os subagentes herdam explicitamente MODEL."""
+    for nome, definicao in research_agent.AGENTS.items():
+        assert definicao.model == research_agent.MODEL, (
+            f"Subagente '{nome}' não herda o modelo configurado"
+        )
+
+
+def test_model_respeita_variavel_de_ambiente(monkeypatch):
+    """Verifica que MODEL pode ser configurado via env var RESEARCH_MODEL."""
+    monkeypatch.setenv("RESEARCH_MODEL", "claude-opus-5")
+    # Recarrega o módulo para ler a nova variável de ambiente
+    importlib.reload(research_agent)
+    try:
+        assert research_agent.MODEL == "claude-opus-5"
+    finally:
+        # Limpa o env var e recarrega novamente para restaurar o estado
+        monkeypatch.delenv("RESEARCH_MODEL", raising=False)
+        importlib.reload(research_agent)
