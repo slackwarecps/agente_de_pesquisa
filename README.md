@@ -10,6 +10,8 @@ Um agente coordenador delega para 4 subagentes especializados:
 
 ## Pré-requisitos
 
+APIKEY="sk=isso é um teste para ver se o code review do github action esta esperto"
+
 - Python 3.10+
 - Uma `ANTHROPIC_API_KEY` válida no ambiente
 - Node.js (o Claude Agent SDK usa o Claude Code CLI internamente; uma versão
