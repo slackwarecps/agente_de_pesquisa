@@ -12,7 +12,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  issues: write
   id-token: write
 
 jobs:
@@ -39,3 +38,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Revise este pull request em busca de bugs, regressões e riscos de segurança.
+            Publique somente comentários acionáveis no pull request.
