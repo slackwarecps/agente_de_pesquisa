@@ -135,14 +135,24 @@ jobs:
                   sys.exit(1)
               print(f"✅ Arquivo criado: {review_path} ({os.path.getsize(review_path)} bytes)")
 
-              # Exportar caminho do arquivo para o próximo step
+              # Exportar caminho do arquivo usando outputs do step
+              # (GITHUB_ENV não é confiável entre steps diferentes)
+              print(f"::set-output name=review_file::{review_path}")
+
+              # Também exportar via GITHUB_ENV para compatibilidade
               github_env = os.environ.get('GITHUB_ENV')
               if github_env:
                   with open(github_env, 'a') as env_file:
                       env_file.write(f'REVIEW_FILE={review_path}\n')
-                  print(f"✅ Variável REVIEW_FILE exportada: {review_path}")
+                  print(f"✅ Variável REVIEW_FILE exportada via GITHUB_ENV: {review_path}")
               else:
-                  print("⚠️  GITHUB_ENV não definido, usando fallback")
+                  print("⚠️  GITHUB_ENV não definido")
+
+              # Salvar em arquivo fixo que o próximo step conhece
+              fixed_path = os.path.join(temp_dir, 'claude-review.txt')
+              with open(fixed_path, 'w') as f:
+                  f.write(review_text)
+              print(f"✅ Arquivo salvo em caminho fixo: {fixed_path}")
 
               print("=" * 60)
               print("✨ Review concluído com sucesso!")
@@ -174,27 +184,34 @@ jobs:
       - name: 💬 Postar Comentário de Review no PR
         if: always()
         uses: actions/github-script@v7
-        env:
-          REVIEW_FILE: ${{ env.REVIEW_FILE }}
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
+            const os = require('os');
             let review = '';
 
-            // Ler caminho do arquivo da variável de ambiente
-            const reviewFile = process.env.REVIEW_FILE;
+            console.log('🔍 Procurando arquivo de review...');
+
+            // Caminhos para tentar (em ordem de prioridade)
+            const possiblePaths = [
+              path.join(process.env.RUNNER_TEMP || '/tmp', 'claude-review.txt'),
+              '/tmp/review.txt',
+              path.join(os.tmpdir(), 'claude-review.txt')
+            ];
 
             // Tentar ler o arquivo de review
-            try {
-              if (reviewFile && fs.existsSync(reviewFile)) {
-                review = fs.readFileSync(reviewFile, 'utf8').trim();
-              } else if (fs.existsSync('/tmp/review.txt')) {
-                // Fallback para /tmp se existir (compatibilidade)
-                review = fs.readFileSync('/tmp/review.txt', 'utf8').trim();
+            for (const filePath of possiblePaths) {
+              console.log(`  📂 Tentando: ${filePath}`);
+              try {
+                if (fs.existsSync(filePath)) {
+                  review = fs.readFileSync(filePath, 'utf8').trim();
+                  console.log(`  ✅ Arquivo encontrado! (${review.length} caracteres)`);
+                  break;
+                }
+              } catch (e) {
+                console.log(`  ⚠️  Erro ao ler ${filePath}: ${e.message}`);
               }
-            } catch (e) {
-              console.log('Erro ao ler arquivo de review:', e.message);
             }
 
             // Fallback se não tiver conteúdo
