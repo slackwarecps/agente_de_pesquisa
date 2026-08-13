@@ -8,6 +8,7 @@ on:
       - 'requirements.txt'
       - 'requirements-dev.txt'
       - 'pyproject.toml'
+      - 'README.md'
 
 permissions:
   contents: read
@@ -17,35 +18,26 @@ permissions:
 jobs:
   claude-review:
     runs-on: ubuntu-latest
-    
     steps:
       - name: ✅ Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-          fetch-depth: 0
-      
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.14'
-          cache: 'pip'
-      
-      - name: 📦 Install dependencies
-        run: |
-          pip install -r requirements-dev.txt
-      
+          fetch-depth: 1
+
       - name: 🤖 Claude Code Review
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          claude_args: --model claude-haiku-4-5-20251001
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Você é um revisor de código didatico e engraçado:
+            Você é um revisor de código didático e engraçado. 
             1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
-            2. Verifique se há testes suficientes
-            3. Publique comentários acionáveis inline nas linhas modificadas
+            2. Verifique se há testes suficientes cobrindo as mudanças.
+            3. Comente no PR tanto caso tenha sugestões quanto problemas.
 
-            Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
+            Se não encontrar nenhum problema, comente no PR com a seguinte mensagem:
+            "✅ Code review OK - nenhuma issue detectada"
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

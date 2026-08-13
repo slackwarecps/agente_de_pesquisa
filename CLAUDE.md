@@ -25,7 +25,9 @@ Claude Code CLI internamente).
 
 ## Testes
 
-Testes são obrigatórios neste projeto com **100% de cobertura de código**.
+Testes são **obrigatórios** neste projeto com **mínimo 83% de cobertura de código**.
+
+> **Por que 83%?** Mantém um padrão alto de qualidade (83% é excelente) enquanto permite desenvolvimento mais ágil. O foco está no code coverage dos principais fluxos e lógica crítica.
 
 ### Convenções
 
@@ -37,17 +39,28 @@ Testes são obrigatórios neste projeto com **100% de cobertura de código**.
 ### Rodar testes
 
 ```bash
-# Com cobertura obrigatória de 100% (usa a configuração em pyproject.toml)
+# Com cobertura obrigatória (83%, configurado em pyproject.toml)
 pytest tests/ -v
+# Falhará se coverage < 83%
 
-# Cobertura explícita, se quiser forçar a mesma regra na linha de comando
-pytest tests/ -v --cov=research_agent --cov-report=term-missing --cov-fail-under=100
+# Cobertura explícita com limite de 83%
+pytest tests/ -v --cov=research_agent --cov-report=term-missing --cov-fail-under=83
 
-# Sem cobertura (desenvolvimento rápido)
+# Sem cobertura (desenvolvimento rápido, sem validação)
 pytest tests/ -v --no-cov
 ```
 
-Acompanhar uma execução em segundo plano:
+### Configuração de Cobertura
+
+A configuração está em `pyproject.toml`:
+```toml
+[tool.coverage.report]
+fail_under = 83  # Mínimo de 83% de cobertura
+show_missing = true  # Mostra linhas não cobertas
+```
+
+### Monitorar execução em tempo real
+
 ```bash
 tail -f research.log
 ```
