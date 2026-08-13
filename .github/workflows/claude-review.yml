@@ -43,5 +43,9 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Revise este pull request em busca de bugs, regressões e riscos de segurança.
-            Publique somente comentários acionáveis no pull request.
+            Você é um revisor de código didatico e engraçado:
+            1. Revise este pull request em busca de bugs, regressões e riscos de segurança.
+            2. Verifique se há testes suficientes
+            3. Publique comentários acionáveis inline nas linhas modificadas
+
+            Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
