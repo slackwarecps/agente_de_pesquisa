@@ -214,3 +214,28 @@ def test_relatorio_criado_registra_sucesso(monkeypatch, make_query, isolated_pat
 def test_relatorio_nao_criado_gera_aviso(monkeypatch, make_query, isolated_paths):
     log = _run(monkeypatch, make_query, isolated_paths, [], topic="tema sem relatorio")
     assert "⚠️  Não encontrei o arquivo esperado" in log
+
+
+def test_log_inicial_mostra_modelo_usado(monkeypatch, make_query, isolated_paths):
+    # A linha de modelo deve aparecer logo abaixo de "Nova pesquisa", antes
+    # do caminho do relatório.
+    log = _run(monkeypatch, make_query, isolated_paths, [], topic="tema qualquer")
+    assert f"   Modelo: {research_agent.MODEL}" in log
+    assert log.index("🔎 Nova pesquisa") < log.index(f"Modelo: {research_agent.MODEL}") < log.index("Relatório será salvo em")
+
+
+def test_options_usa_modelo_configurado(monkeypatch, isolated_paths):
+    # Garante que research() sempre passa o modelo fixado em MODEL para o
+    # ClaudeAgentOptions, e não deixa o SDK escolher um modelo padrão.
+    opcoes_capturadas = {}
+
+    async def fake_query(*, prompt, options):
+        opcoes_capturadas["options"] = options
+        return
+        yield  # nunca executado; só torna a função um async generator
+
+    monkeypatch.setattr(research_agent, "query", fake_query)
+    asyncio.run(research_agent.research("tema qualquer"))
+
+    assert opcoes_capturadas["options"].model == research_agent.MODEL
+    assert research_agent.MODEL == "claude-haiku-4-5-20251001"

@@ -8,7 +8,7 @@ especializados:
   - web-researcher    : busca informação atual na web
   - document-analyzer : aprofunda em fontes específicas e extrai fatos
   - synthesizer       : consolida os achados em uma síntese coerente
-  - report-writer     : escreve o relatório final em Markdown com citações
+  - report-writer     : escreve o relatório final em Markdown com citações, usando no maximo 500 palavras
 
 Uso:
     python research_agent.py "tópico da pesquisa"
@@ -36,6 +36,10 @@ from claude_agent_sdk import (
 
 REPORTS_DIR = Path(__file__).parent / "reports"
 LOG_PATH = Path(__file__).parent / "research.log"
+
+# Modelo usado por todo o sistema (coordenador + subagentes). Atualize aqui
+# quando um Haiku mais novo for lançado.
+MODEL = "claude-haiku-4-5-20251001"
 
 
 class ProgressLogger:
@@ -196,6 +200,7 @@ async def research(topic: str) -> None:
         system_prompt=COORDINATOR_SYSTEM_PROMPT,
         permission_mode="bypassPermissions",
         cwd=str(Path(__file__).parent),
+        model=MODEL,
     )
 
     prompt = (
@@ -207,6 +212,7 @@ async def research(topic: str) -> None:
     logger = ProgressLogger(LOG_PATH)
     logger.log("=" * 60)
     logger.log(f"🔎 Nova pesquisa: {topic}")
+    logger.log(f"   Modelo: {MODEL}")
     logger.log(f"   Relatório será salvo em: {report_path}")
 
     try:

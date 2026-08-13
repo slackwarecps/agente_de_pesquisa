@@ -83,8 +83,8 @@ o comportamento de uma etapa, editar a entrada correspondente em `AGENTS` em
 vez de mexer no prompt do coordenador.
 
 A função `research()` monta as `ClaudeAgentOptions` (agentes, `allowed_tools`,
-`system_prompt`, `permission_mode="bypassPermissions"`), dispara `query(...)`
-e consome o stream de mensagens em tempo real, tratando por tipo:
+`system_prompt`, `permission_mode="bypassPermissions"`, `model=MODEL`), dispara
+`query(...)` e consome o stream de mensagens em tempo real, tratando por tipo:
 `TaskStartedMessage`/`TaskNotificationMessage` (início/fim de subagente),
 `AssistantMessage` com `ToolUseBlock` do tipo `Task` (delegações) ou
 `TextBlock` (falas do coordenador), e `ResultMessage` (custo/turnos finais).
@@ -97,3 +97,6 @@ O caminho do relatório é derivado do tópico via `_slugify()` e passado
 explicitamente no prompt do coordenador — o report-writer deve salvar
 exatamente nesse caminho (`reports/<slug-do-tópico>.md`); ao final,
 `research()` confere se o arquivo realmente foi criado nesse caminho.
+
+O modelo usado por coordenador e subagentes é fixado na constante `MODEL`
+(topo do arquivo) — atualize-a ali quando um Haiku mais recente for lançado.
