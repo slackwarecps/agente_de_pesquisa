@@ -35,6 +35,7 @@ jobs:
           pip install -r requirements-dev.txt
       
       - name: 🤖 Claude Code Review
+        id: review
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -49,3 +50,25 @@ jobs:
             3. Publique comentários acionáveis inline nas linhas modificadas
 
             Se não encontrar problemas, comentar: "✅ Code review OK - nenhuma issue detectada"
+
+      - name: 💬 Postar Comentário de Review no PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const review = `${{ steps.review.outputs.review || steps.review.outputs.result || 'Análise de código concluída.' }}`;
+
+            if (!review || review.trim() === '') {
+              console.log('Nenhuma review para postar');
+              return;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: review
+            });
+
+            console.log('✅ Comentário postado com sucesso no PR');
+        continue-on-error: true
